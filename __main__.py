@@ -1,16 +1,17 @@
 import os
 import logging
 from dotenv import load_dotenv
+from core.ui import ResearchAssistantUI
+from functools import partial
 # from core.ui import run_ui
-from langchain_core.messages import HumanMessage
-from core.state import State
+from core.nodes import *
 from core.structure import create_graph
 from core.llm_connector import get_llm_client
 
 logging.basicConfig(
     filename='KekAI.log',
     filemode='w',
-    level=logging.INFO
+    level=logging.DEBUG
 )
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -24,25 +25,15 @@ MODEL_SUPERVISOR = os.environ.get("BASE_MODEL")
 
 if __name__ == '__main__':
     assert API_KEY is not None, "Insert your API_KEY into .env file!"
-    query = input('Enter your question: ')
-    init: State = {
-        "messages": [HumanMessage(content=query)],
-        "plan": None,
-        "draft": None,
-        "validated": None,
-        "summary": None,
-        "validation_fail_count": 0,
-    }
-    logger.info('State prepared')
     llm_nodes = {
-        'planner': get_llm_client(MODEL, temperature=0.),
-        'supervisor': get_llm_client(MODEL, temperature=0.1),
-        'validator': get_llm_client(MODEL, temperature=0.1),
-        'summarizer': get_llm_client(MODEL, temperature=0.1)
+        'planner': partial(planner_node, get_llm_client(MODEL, temperature=0.)),
+        'supervisor': partial(supervisor_node, get_llm_client(MODEL, temperature=0.1)),
+        'validator': partial(validator_node, get_llm_client(MODEL, temperature=0.1)),
+        'summarizer': partial(summarizer_node, get_llm_client(MODEL, temperature=0.1))
     }
     logger.info('LLM clients set')
-    app = create_graph(State, **llm_nodes).compile()
+    app = create_graph(**llm_nodes).compile()
     logger.info('Graph compiled')
-    state = app.invoke(init)
-    print("\n--- SUMMARY ---\n", state.get("summary"))
+    ui = ResearchAssistantUI(app)
+    ui.run()
     # run_ui()

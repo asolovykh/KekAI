@@ -23,24 +23,27 @@ def _ensure_defaults(state: Dict[str, Any]) -> State:
         "validated": state.get("validated"),
         "summary": state.get("summary"),
         "validation_fail_count": state.get("validation_fail_count", 0),
+        "mode": state.get("mode"),
+        "print_to": state.get("print_to")
     }
 
 
-def planner_node(state: State, llm: ChatOpenAI) -> Dict[str, Any]:
+def planner_node(llm: ChatOpenAI, state: State) -> Dict[str, Any]:
     sys = SystemMessage(content=planner_system_prompt)
-    print(sys, state['messages'], sep='\n')
     res = llm.invoke([sys] + state["messages"])
     steps = [s.strip("- •").strip() for s in (res.content or "").split("\n") if s.strip()]
 
     new_state = dict(state)
     new_state["messages"] = state["messages"] + [res]
     new_state["plan"] = steps[:8] or None
+    if state.get('print_to', False):
+        state['print_to'].update(label=f'📔 Планировщик предложил следующие шаги: {new_state.get('plan', "Empty plan")}', state='running')
     
-    print("\n--- PLANNER ---\n", steps[:8] or None)
+    #print("\n--- PLANNER ---\n", steps[:8] or None)
 
     return _ensure_defaults(new_state)
 
-def supervisor_node(state: State, llm: ChatOpenAI) -> Dict[str, Any]:
+def supervisor_node(llm: ChatOpenAI, state: State) -> Dict[str, Any]:
     def serialize_messages(messages: List[BaseMessage]):
         role_map = {"human": "user", "ai": "assistant", "system": "system"}
         serialized = []
@@ -61,12 +64,14 @@ def supervisor_node(state: State, llm: ChatOpenAI) -> Dict[str, Any]:
     new_state = dict(state)
     new_state["messages"] = state["messages"] + appended
     new_state["draft"] = draft
+    if state.get('print_to', False):
+        state['print_to'].update(label=f'🔍 Супервизор нашел: {new_state.get('draft', "Empty draft")}', state='running')
     
-    print("\n--- SUPERVISOR ---\n", draft)
+    #print("\n--- SUPERVISOR ---\n", draft)
     
     return _ensure_defaults(new_state)
 
-def validator_node(state: State, llm: ChatOpenAI) -> Dict[str, Any]:
+def validator_node(llm: ChatOpenAI, state: State) -> Dict[str, Any]:
     draft = state.get("draft") or ""
     sys = SystemMessage(content=validator_system_prompt)
     res = llm.invoke([sys, HumanMessage(content=draft)])
@@ -81,11 +86,13 @@ def validator_node(state: State, llm: ChatOpenAI) -> Dict[str, Any]:
     new_state["validated"] = valid
     new_state["validation_fail_count"] = count
     
-    print("\n--- VALIDATOR ---\n", res.content)
+    if state.get('print_to', False):
+        state['print_to'].update(label=f'⚖️ Валидатор вернул: {new_state.get('Validated', "Empty draft")}', state='running')
+    #print("\n--- VALIDATOR ---\n", res.content)
 
     return _ensure_defaults(new_state)
 
-def summarizer_node(state: State, llm: ChatOpenAI) -> Dict[str, Any]:
+def summarizer_node(llm: ChatOpenAI, state: State) -> Dict[str, Any]:
     history = str(state["messages"])
     sys = SystemMessage(content=summary_system_prompt.format(history=history))
     res = llm.invoke([sys])
@@ -93,4 +100,7 @@ def summarizer_node(state: State, llm: ChatOpenAI) -> Dict[str, Any]:
     new_state = dict(state)
     new_state["messages"] = state["messages"] + [AIMessage(content=f"[summary] {res.content}")]
     new_state["summary"] = res.content
+    
+    if state.get('print_to', False):
+        state['print_to'].update(label=f'Результат получен: {new_state.get('summary', "Empty summary")}', state='complete')
     return _ensure_defaults(new_state)
