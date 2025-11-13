@@ -149,9 +149,12 @@ Pro: "Сравни влияние Толстого и Достоевского �
     chain = classify_prompt | llm | StrOutputParser()
     mode_str = chain.invoke({"query": query}).strip().lower()
     return Mode.SIMPLE if "simple" in mode_str else Mode.PRO
+
+
+
 def simple_mode(query: str) -> Dict[str, Any]:
     results = web_search(query, num_results=3)
-    # Improved prompt with more few-shot
+    # Improved prompt with more few-shot (ESCAPED CURLY BRACES)
     few_shot = """
 Examples:
 Query: Who received the IEEE Frank Rosenblatt Award in 2010?
@@ -161,7 +164,7 @@ Query: On which U.S. TV station did the Canadian reality series *To Serve and Pr
 Results: ... premiered on KVOS-TV ...
 Answer: KVOS-TV
 Query: What day, month, and year was Carrie Underwood’s album “Cry Pretty” certified Gold by the RIAA?
-Results: { ... certified Gold ... October 23, 2018 ... }
+Results: {{ ... certified Gold ... October 23, 2018 ... }}
 Answer: October 23, 2018
 Query: What is the first and last name of the woman whom the British linguist Bernard Comrie married in 1985?
 Results: ... married ... Akiko Kumahira ...
@@ -183,6 +186,8 @@ Answer: Akiko Kumahira
         "sources": [r.url for r in results],
         "time_estimate": "Fast (<2s)"
     }
+
+
 def pro_mode(query: str, sub_mode: str = None, status_container=None) -> Dict[str, Any]:
     # Enhanced hop_prompt with more few-shot, incl. tricky cases
     hop_few_shot = """
