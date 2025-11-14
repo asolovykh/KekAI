@@ -30,6 +30,7 @@ if __name__ == '__main__':
     except AssertionError:
         logging.fatal('API keys do not found! Insert your API_KEY into .env file!')
     llm_nodes = {
+        'analyzer': partial(analyzer_node, get_llm_client(MODEL), temperature=0.15),
         'planner': partial(planner_node, get_llm_client(MODEL, temperature=0.07)),
         'supervisor': partial(supervisor_node, get_llm_client(MODEL, temperature=0.05)),
         'validator': partial(validator_node, get_llm_client(MODEL, temperature=0)),

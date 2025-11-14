@@ -59,7 +59,11 @@ def supervisor_node(llm: ChatOpenAI, state: State) -> Dict[str, Any]:
 
     base_msgs = state["messages"][:2]
     
-    TOOLS = [web_search(state.get('mode', 'simple')), describe_image, code_execution, browse_page, arxiv_search]
+    TOOLS = []
+    if state.get('mode', 'simple') == 'simple':
+        TOOLS = [web_search(state.get('mode', 'simple'))]
+    else:
+        TOOLS = [web_search(state.get('mode', 'simple')), describe_image, code_execution, browse_page, arxiv_search]
     supervisor_agent_graph = create_agent(
         model=llm, tools=TOOLS, system_prompt=prompt
     )
@@ -121,3 +125,7 @@ def summarizer_node(llm: ChatOpenAI, state: State) -> Dict[str, Any]:
         state['print_to'].update(label=info, state='complete')
         state['thoughts'].append(info)
     return _ensure_defaults(new_state)
+
+
+def analyzer_node(llm: ChatOpenAI, state: State) -> Dict[str, Any]:
+    prompt = SIMPLE_PROMPTS.ANALYZER.value if state.get("mode", "simple") == "simple" else PRO_PROMTS.ANALYZER.value
