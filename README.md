@@ -1,6 +1,4 @@
-# KekBootCamp
-
-> Kek – потому что почему бы и нет? 🚀
+# WSAI - Web Search AI agent
 
 ## Установка и запуск
 
